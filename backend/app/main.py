@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 from backend.app.agent.flow import app_graph
 from backend.app.agent.state import StudentProfile
+from backend.app.agent.judge import judge_response
 from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 
@@ -19,35 +20,34 @@ class ChatInput(BaseModel):
 async def chat_endpoint(input_data: ChatInput):
     try:
         current_profile = StudentProfile(**input_data.profile)
-        
-        # --- CORREZIONE MEMORIA (Huyen Pag. 302) ---
-        # Ricostruiamo la cronologia completa dai messaggi passati dal frontend
         full_history = []
         for msg in input_data.history:
             if msg["role"] == "user":
                 full_history.append(HumanMessage(content=msg["content"]))
             elif msg["role"] == "assistant":
                 full_history.append(AIMessage(content=msg["content"]))
-        
-        # Aggiungiamo l'ultimo messaggio dell'utente
         full_history.append(HumanMessage(content=input_data.message))
         
-        # Passiamo TUTTA la storia al grafo
-        inputs = {
-            "messages": full_history,
-            "profile": current_profile 
-        }
-        
+        inputs = {"messages": full_history, "profile": current_profile}
         config = {"configurable": {"thread_id": "session_1"}}
-        result = await app_graph.ainvoke(inputs, config)
         
+        # 1. Esecuzione Orientatore
+        result = await app_graph.ainvoke(inputs, config)
+        final_response = result["messages"][-1].content
+        
+        # 2. Esecuzione Giudice (Mandatoria)
+        evaluation = judge_response(result["profile"].model_dump(), input_data.message, final_response)
+        
+        # LOG DI DEBUG NEL TERMINALE
+        print(f"GIUDICE DICE: {evaluation.punteggio_fedelta}/5")
+
         return {
-            "response": result["messages"][-1].content,
-            "profile": result["profile"].model_dump()
+            "response": final_response,
+            "profile": result["profile"].model_dump(),
+            "judge_report": evaluation.model_dump()
         }
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        print(f"ERRORE BACKEND: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
