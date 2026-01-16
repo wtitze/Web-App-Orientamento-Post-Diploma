@@ -3,7 +3,6 @@ from api_client import send_message
 
 st.set_page_config(page_title="Orientatore AI + Judge", page_icon=":mortar_board:", layout="wide")
 
-# Pulsante di Reset Totale
 if st.sidebar.button("🗑️ Ricomincia da zero"):
     st.session_state.messages = []
     st.session_state.profile = {}
@@ -31,7 +30,7 @@ if prompt := st.chat_input("Scrivi qui..."):
     with st.chat_message("user"): st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("L'orientatore sta verificando i dati..."):
+        with st.spinner("L'orientatore risponde e il Giudice valuta..."):
             data = send_message(prompt, st.session_state.messages, st.session_state.profile)
             st.markdown(data["response"])
             st.session_state.last_report = data.get("judge_report")
@@ -40,9 +39,10 @@ if prompt := st.chat_input("Scrivi qui..."):
     st.rerun()
 
 if st.session_state.last_report:
-    with st.expander("🔍 VALUTAZIONE TECNICA DELLA RISPOSTA", expanded=True):
-        r = st.session_state.last_report
-        c1, c2 = st.columns(2)
-        c1.metric("Fedeltà ai vincoli", f"{r.get('punteggio_fedelta', 0)}/5")
-        c2.metric("Efficienza", f"{r.get('punteggio_efficienza', 0)}/5")
-        st.info(f"**Analisi del Giudice:** {r.get('analisi_critica', 'N/A')}")
+    r = st.session_state.last_report
+    if r.get("violazione_protocollo"):
+        st.error(f"⚠️ ERRORE DI PROTOCOLLO: {r.get('analisi_critica')}")
+    else:
+        with st.expander("🔍 VALUTAZIONE TECNICA"):
+            st.success("✅ Protocollo rispettato.")
+            st.info(f"**Analisi del Giudice:** {r.get('analisi_critica')}")

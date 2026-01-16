@@ -6,29 +6,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class EvaluationReport(BaseModel):
-    punteggio_fedelta: int = Field(description="Voto 1-5 sul rispetto dei vincoli")
-    punteggio_efficienza: int = Field(description="Voto 1-5 sulla proattività (ha usato i tool quando richiesto?)")
-    analisi_critica: str = Field(description="Analisi dettagliata, inclusa la segnalazione di ridondanze")
-    ridondanza_rilevata: bool = Field(description="True se l'agente ripete il profilo inutilmente")
-    allucinazione_rilevata: bool = Field(description="True se inventa dati")
+    risposta_pertinente: bool = Field(description="False se l'agente ha ignorato la domanda o ha dato consigli senza avere i dati necessari")
+    violazione_protocollo: bool = Field(description="True se l'agente ha dato link o consigli senza prima chiedere città/scuola")
+    analisi_critica: str = Field(description="Spiegazione tecnica del fallimento ingegneristico")
 
 def judge_response(profile_dict: dict, query: str, assistant_response: str) -> EvaluationReport:
     api_key = os.getenv("GROQ_API_KEY")
-    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, api_key=api_key)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0, api_key=api_key)
     structured_judge = llm.with_structured_output(EvaluationReport)
 
     prompt = f"""
-    Sei un Supervisore della Qualità. Valuta la risposta dell'Agente Orientatore.
+    Sei un Ispettore di Processo per sistemi IA. Devi verificare se l'Agente Orientatore ha violato le regole di AI Engineering.
 
     PROFILO STUDENTE: {profile_dict}
     DOMANDA UTENTE: {query}
     RISPOSTA AGENTE: {assistant_response}
 
-    PENALITÀ CRITICHE:
-    1. RIDONDANZA: Se l'agente ripete il profilo (Scuola, Indirizzo, ecc.) nella risposta, penalizza pesantemente e segna ridondanza_rilevata=True.
-    2. PIGRIZIA: Se l'utente ha detto 'sì' a una ricerca e l'agente ha risposto solo con chiacchiere senza attivare 'AZIONE: RICERCA', dai 1 in efficienza.
-    3. COERENZA: Deve rispettare i 60 minuti di treno da Milano.
+    REGOLE DA VERIFICARE:
+    1. Se l'agente ha fornito link o aziende ma nel PROFILO STUDENTE la 'scuola' o la 'localita' sono assenti o nulle, è una VIOLAZIONE GRAVE.
+    2. L'agente non deve mai indovinare la città (es. Milano) se l'utente non l'ha detta.
+    3. Se l'agente ha violato queste regole, segna violazione_protocollo=True e risposta_pertinente=False.
 
-    Sii estremamente severo sulla ripetitività.
+    Sii estremamente pignolo e severo.
     """
     return structured_judge.invoke(prompt)
