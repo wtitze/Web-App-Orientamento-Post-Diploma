@@ -8,7 +8,7 @@ from backend.app.agent.judge import judge_response
 from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 app = FastAPI()
 
 class ChatInput(BaseModel):
@@ -20,34 +20,33 @@ class ChatInput(BaseModel):
 async def chat_endpoint(input_data: ChatInput):
     try:
         current_profile = StudentProfile(**input_data.profile)
+        
         full_history = []
         for msg in input_data.history:
-            if msg["role"] == "user":
-                full_history.append(HumanMessage(content=msg["content"]))
-            elif msg["role"] == "assistant":
-                full_history.append(AIMessage(content=msg["content"]))
+            role = HumanMessage if msg["role"] == "user" else AIMessage
+            full_history.append(role(content=msg["content"]))
         full_history.append(HumanMessage(content=input_data.message))
         
         inputs = {"messages": full_history, "profile": current_profile}
         config = {"configurable": {"thread_id": "session_1"}}
         
-        # 1. Esecuzione Orientatore
+        # Esecuzione Orientatore
         result = await app_graph.ainvoke(inputs, config)
         final_response = result["messages"][-1].content
+        # Recuperiamo il nome del modello dallo stato
+        orientatore_model = result.get("model_used", "Sconosciuto")
         
-        # 2. Esecuzione Giudice (Mandatoria)
+        # Esecuzione Giudice
         evaluation = judge_response(result["profile"].model_dump(), input_data.message, final_response)
         
-        # LOG DI DEBUG NEL TERMINALE
-        print(f"GIUDICE DICE: {evaluation.punteggio_fedelta}/5")
-
         return {
             "response": final_response,
             "profile": result["profile"].model_dump(),
-            "judge_report": evaluation.model_dump()
+            "judge_report": evaluation.model_dump(),
+            "orientatore_model": orientatore_model # Inviamo il nome al frontend
         }
     except Exception as e:
-        print(f"ERRORE BACKEND: {e}")
+        print(f"ERRORE: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
