@@ -1,52 +1,44 @@
 import streamlit as st
 from api_client import send_message
 
-st.set_page_config(page_title="Orientatore AI + Dual Model", page_icon=":mortar_board:", layout="wide")
-
-if st.sidebar.button("🗑️ Reset Sessione"):
-    st.session_state.messages = []
-    st.session_state.profile = {}
-    st.session_state.last_report = None
-    st.rerun()
-
-st.sidebar.title("👤 Profilo")
-if "profile" not in st.session_state: st.session_state.profile = {}
-for k, v in st.session_state.profile.items():
-    if v: st.sidebar.write(f"**{k.capitalize()}:** {v}")
-
-st.title("🎓 Orientatore con Fallback Gemini")
+st.set_page_config(page_title="Orientatore Pro", page_icon=":mortar_board:", layout="wide")
 
 if "messages" not in st.session_state: st.session_state.messages = []
-if "last_report" not in st.session_state: st.session_state.last_report = None
-if "orientatore_model" not in st.session_state: st.session_state.orientatore_model = ""
+if "profile" not in st.session_state: st.session_state.profile = {}
+if "current_phase" not in st.session_state: st.session_state.current_phase = 1
+if "phase_completion" not in st.session_state: st.session_state.phase_completion = 0.0
+if "model_used" not in st.session_state: st.session_state.model_used = "-"
+
+with st.sidebar:
+    st.title("🎓 Stato")
+    phases = ["Discovery", "Mapping", "Execution", "Decision"]
+    st.write(f"**Fase:** {phases[st.session_state.current_phase-1]}")
+    st.progress(st.session_state.phase_completion / 100)
+    st.caption(f"Progresso: {st.session_state.phase_completion}%")
+    st.divider()
+    st.subheader("👤 Profilo")
+    for k, v in st.session_state.profile.items():
+        if v: st.write(f"**{k.capitalize()}:** {v}")
+    if st.button("🗑️ Reset"):
+        st.session_state.clear()
+        st.rerun()
+
+st.title("Orientatore Post-Diploma")
+st.caption(f"Cervello: {st.session_state.model_used}")
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
-if prompt := st.chat_input("Scrivi qui..."):
+if prompt := st.chat_input("Rispondi..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.markdown(prompt)
-
     with st.chat_message("assistant"):
-        with st.spinner("L'orientatore sta elaborando..."):
-            data = send_message(prompt, st.session_state.messages, st.session_state.profile)
+        with st.spinner("Validazione..."):
+            data = send_message(prompt, st.session_state.messages, st.session_state.profile, st.session_state.current_phase, st.session_state.phase_completion)
             st.markdown(data["response"])
-            st.session_state.last_report = data.get("judge_report")
-            st.session_state.orientatore_model = data.get("orientatore_model")
             st.session_state.profile = data["profile"]
+            st.session_state.current_phase = data["current_phase"]
+            st.session_state.phase_completion = data["phase_completion"]
+            st.session_state.model_used = data["model_used"]
             st.session_state.messages.append({"role": "assistant", "content": data["response"]})
     st.rerun()
-
-if st.session_state.last_report:
-    r = st.session_state.last_report
-    with st.expander("🔍 INFO TECNICHE E QUALITÀ", expanded=True):
-        st.write(f"🧠 **Modello Orientatore:** {st.session_state.orientatore_model}")
-        st.write(f"⚖️ **Modello Giudice:** {r.get('model_used')}")
-        st.divider()
-        if r.get("violazione_protocollo"):
-            st.error(f"Violazione Protocollo: {r.get('analisi_critica')}")
-        else:
-            c1, c2 = st.columns(2)
-            c1.metric("Fedeltà", f"{r.get('punteggio_fedelta')}/5")
-            c2.metric("Efficienza", f"{r.get('punteggio_efficienza', 0)}/5")
-            st.info(f"**Analisi del Giudice:** {r.get('analisi_critica')}")

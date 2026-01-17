@@ -6,15 +6,17 @@ class StudentProfile(BaseModel):
     scuola: Optional[str] = None
     indirizzo: Optional[str] = None
     localita: Optional[str] = None
-    interessi: List[str] = []
-    aspirazioni: Optional[str] = None
-    budget_limitato: bool = False
-    mobilita: Optional[str] = None
+    sogni_aspirazioni: Optional[str] = None
+    budget_mensile_max: Optional[float] = None
+    mobilita_estesa: Optional[str] = None
+    interessi_pratici: List[str] = []
+    percorso_scelto: Optional[str] = None
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     profile: StudentProfile
-    next_steps: List[str]
-    search_results: List[dict]
-    # Usiamo questo campo per salvare il nome del modello usato
-    model_used: Optional[str]
+    current_phase: int
+    phase_completion: float
+    judge_feedback: Optional[str]
+    model_used: str
+    iteration_count: int

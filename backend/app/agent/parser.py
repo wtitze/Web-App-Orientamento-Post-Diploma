@@ -2,19 +2,29 @@ from backend.app.agent.state import StudentProfile
 from backend.app.agent.prompts import PROFILE_EXTRACTOR_PROMPT
 
 def extract_profile_logic(messages: list, current_profile: StudentProfile, llm_proxy_func) -> StudentProfile:
-    """
-    Analizza la conversazione e aggiorna il profilo strutturato.
-    Utilizza la funzione proxy per gestire il fallback tra modelli.
-    """
-    profile_context = f"Profilo attuale: {current_profile.model_dump()}"
-    history_text = "\n".join([f"{getattr(m, 'type', 'msg')}: {m.content}" for m in messages[-5:]])
+    # Analizziamo solo gli ultimi scambi per non confondere il parser
+    history_text = ""
+    for m in messages[-4:]:
+        role = "Studente" if m.type == "human" else "Orientatore"
+        history_text += f"{role}: {m.content}\n"
     
-    prompt = f"{PROFILE_EXTRACTOR_PROMPT}\n\n{profile_context}\n\nNuovi messaggi:\n{history_text}"
+    prompt = f"{PROFILE_EXTRACTOR_PROMPT}\n\n[DIALOGO ATTUALE]:\n{history_text}\n\n[PROFILO ATTUALE]: {current_profile.model_dump()}"
     
     try:
-        # Chiamiamo la funzione universale chiedendo un output strutturato
-        updated_profile, _ = llm_proxy_func(prompt, structured_schema=StudentProfile)
-        return updated_profile
-    except Exception as e:
-        print(f"Errore critico estrazione profilo: {e}")
+        new_data, _ = llm_proxy_func(prompt, structured_schema=StudentProfile)
+        
+        updated = current_profile.model_dump()
+        for k, v in new_data.model_dump().items():
+            # Logica Sticky: non sovrascrivere dati certi con None
+            if v is not None and v != "" and v != []:
+                updated[k] = v
+        
+        # Logica speciale per il percorso: se dice 'voglio lavorare', percorso_scelto = 'Lavoro'
+        txt = history_text.lower()
+        if "lavorare" in txt or "lavoro" in txt: updated["percorso_scelto"] = "Lavoro"
+        elif "università" in txt or "laurea" in txt: updated["percorso_scelto"] = "Università"
+        elif "its" in txt: updated["percorso_scelto"] = "ITS"
+            
+        return StudentProfile(**updated)
+    except:
         return current_profile
