@@ -1,36 +1,44 @@
 import pytest
 from backend.app.agent.state import StudentProfile, AgentState
 
-def test_student_profile_creation():
-    """Verifica che il profilo dello studente venga creato correttamente"""
+def test_student_profile_new_schema():
+    """Verifica che il profilo contenga l'indirizzo di studio e non la scuola"""
     profile = StudentProfile(
-        scuola="Liceo Scientifico",
-        localita="Pisa",
-        interessi=["Informatica", "Gaming"],
-        aspirazioni="Voglio lavorare nel software"
+        indirizzo_studio="Informatica",
+        residenza_citta="Milano",
+        aspirazioni="Voglio lavorare"
     )
-    assert profile.scuola == "Liceo Scientifico"
-    assert "Informatica" in profile.interessi
-    assert profile.budget_limitato is False # Valore di default
-
-def test_agent_state_initialization():
-    """Verifica che lo stato dell'agente accetti i dati previsti"""
-    initial_profile = StudentProfile()
-    state: AgentState = {
-        "messages": [("user", "Ciao!")],
-        "profile": initial_profile,
-        "next_steps": ["intervista_iniziale"],
-        "search_results": [],
-        "recommendation": None
-    }
-    assert len(state["messages"]) == 1
-    assert state["next_steps"][0] == "intervista_iniziale"
-
-def test_profile_update():
-    """Simula l'aggiornamento del profilo durante la conversazione"""
-    profile = StudentProfile()
-    profile.scuola = "ITI Informatica"
-    profile.interessi.append("Robotica")
+    # Verifica presenza campi corretti
+    assert profile.indirizzo_studio == "Informatica"
+    assert profile.residenza_citta == "Milano"
     
-    assert profile.scuola == "ITI Informatica"
-    assert "Robotica" in profile.interessi
+    # Verifica assenza campi vecchi o parassiti (Huyen, pag. 303)
+    # Se scriviamo profile.scuola_nome dovrebbe dare errore di attributo
+    with pytest.raises(AttributeError):
+        _ = profile.scuola_nome
+
+def test_fuel_gauge_initialization():
+    """Verifica che i serbatoi partano dai valori massimi"""
+    state: AgentState = {
+        "messages": [],
+        "profile": StudentProfile(),
+        "current_phase": 1,
+        "phase_completion": 0.0,
+        "groq_tokens_left": 100000,
+        "gemini_requests_left": 1500,
+        "model_parser": "-",
+        "model_orientatore": "-",
+        "model_giudice": "-",
+        "iteration_count": 0,
+        "judge_feedback": None
+    }
+    assert state["groq_tokens_left"] == 100000
+    assert state["gemini_requests_left"] == 1500
+    assert state["current_phase"] == 1
+
+def test_profile_serialization():
+    """Verifica che Pydantic V2 converta correttamente in dizionario per l'IA"""
+    profile = StudentProfile(indirizzo_studio="Meccanica", budget_spese_formazione=100.0)
+    dump = profile.model_dump()
+    assert dump["indirizzo_studio"] == "Meccanica"
+    assert dump["budget_spese_formazione"] == 100.0

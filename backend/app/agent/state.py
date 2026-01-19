@@ -3,20 +3,21 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 class StudentProfile(BaseModel):
-    scuola: Optional[str] = None
-    indirizzo: Optional[str] = None
-    localita: Optional[str] = None
-    sogni_aspirazioni: Optional[str] = None
-    budget_mensile_max: Optional[float] = None
-    mobilita_estesa: Optional[str] = None
-    interessi_pratici: List[str] = []
-    percorso_scelto: Optional[str] = None
+    diploma_conseguito: Optional[str] = None
+    competenze_tecniche: List[str] = [] # Solo linguaggi/tool noti
+    residenza_attuale: Optional[str] = None
+    disponibilita_trasferimento: Optional[float] = None
+    obiettivo_post_diploma: Optional[str] = None
+    settore_di_interesse: Optional[str] = None
+    raggio_mobilita: Optional[str] = None # Default rimosso
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     profile: StudentProfile
     current_phase: int
     phase_completion: float
-    judge_feedback: Optional[str]
-    model_used: str
+    groq_tokens_left: int
+    gemini_requests_left: int
+    last_model_used: str
     iteration_count: int
+    judge_feedback: Optional[str]

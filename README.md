@@ -1,25 +1,51 @@
-# AI Career Orienter: Agente IA di Orientamento Post-Diploma
+# 🎓 AI Career Orienter: Architettura Agentica "Lean" & Resiliente
 
-Progetto basato sui principi di **AI Engineering (Chip Huyen, Cap. 6)** per l'orientamento degli studenti verso Lavoro, ITS o Università.
+Questo progetto implementa un **Agente IA di Orientamento Post-Diploma** basato sui principi di **AI Engineering** (Chip Huyen, Capitolo 6). L'obiettivo è guidare gli studenti verso il lavoro, gli ITS o l'Università minimizzando il consumo di token e garantendo l'affidabilità dei dati.
 
-## 🚀 Stato del Progetto
-- [x] **Memory Management (State):** Persistenza del profilo tra i turni della chat (Huyen pag. 302).
-- [x] **Tool Inventory:** Ricerca live (DDG) e Deep Scraper (BS4) con formattazione dei link ottimizzata (Huyen pag. 279).
-- [x] **Agentic Flow:** Implementato pattern ReAct con limiti di ricorsione per prevenire loop infiniti (Huyen pag. 291).
-- [x] **Model Update:** Utilizzo di `llama-3.3-70b-versatile` per ragionamento e pianificazione avanzata.
-- [x] **Frontend & Backend:** Web App completa con visualizzazione dello stato in tempo reale.
+## 🧠 Filosofia Progettuale (Framework Huyen)
 
-## 🛠 Setup e Installazione
-1. **Dipendenze:** `pip install -r backend/requirements.txt && pip install -r frontend/requirements.txt`
-2. **API Key:** Inserire `GROQ_API_KEY` in `backend/.env`.
+A differenza dei chatbot tradizionali, questo sistema adotta un'architettura **multi-agente a controllo deterministico**, focalizzata su tre pilastri:
 
-## 🧠 Innovazioni Architetturali (Framework Huyen)
-- **Tool Reliability (Pag. 299):** Gestione dei blocchi (User-Agent) e dei fallimenti di recupero tramite formattazione esplicita dei link.
-- **Decoupling Planning (Pag. 282):** Separazione netta tra l'analisi del profilo studente e l'azione di ricerca web.
-- **Reflection Loop (Pag. 293):** L'agente verifica i fatti tramite lo scraper prima di fornire una risposta definitiva.
+1.  **Context Efficiency (Pag. 218):** Invece di inviare tutta la cronologia della chat, il sistema usa uno **Stato Strutturato** (Pydantic) e invia solo gli ultimi messaggi. Questo riduce drasticamente il consumo di token e previene la confusione del modello.
+2.  **Model Tiering (Pag. 265):** Utilizziamo modelli "Deboli" (Llama 8B) per compiti deterministici come l'estrazione dati (Parser) e modelli "Forti" (Llama 70B/Gemini Flash) per il ragionamento strategico (Orientatore).
+3.  **Reliability & Fallback (Pag. 299):** Implementazione di una strategia di **High Availability**. Se Groq raggiunge i limiti di quota (Error 429), il sistema commuta istantaneamente su Google Gemini Flash senza interrompere l'esperienza utente.
 
-## 🧪 Validazione
-Eseguire i test per verificare l'integrità del sistema:
-```bash
-PYTHONPATH=. python3 -m pytest tests/
-```
+## 🏗️ Architettura del Sistema
+
+L'applicazione è strutturata in 4 livelli funzionali:
+
+*   **Layer 1: Frontend (Streamlit):** Interfaccia utente trasparente che mostra in tempo reale il profilo estratto e il "livello di carburante" (token/richieste rimanenti).
+*   **Layer 2: API Gateway (FastAPI):** Gestisce le sessioni e funge da ponte tra UI e logica agentica.
+*   **Layer 3: Core Logic (LangGraph):** Orchestratore dei nodi (Parser -> Analyzer). Implementa la logica **Sticky Memory** per evitare la perdita di dati.
+*   **Layer 4: Resources (Groq/Gemini/Tools):** Accesso ai modelli di fondazione e strumenti di ricerca web (DuckDuckGo).
+
+## ⛽ Resource Management & Observability
+
+Seguendo il concetto di **Observability** (pag. 289), il sistema include un monitoraggio real-time delle risorse:
+*   **Fuel Gauge:** Visualizzazione del consumo cumulativo dei token Groq, persistente nel backend tramite `usage_stats.json`.
+*   **Status Persistence:** I dati rimangono salvati anche in caso di riavvio del server o ricaricamento della pagina.
+
+## 🛠️ Setup e Installazione
+
+1.  **Installazione dipendenze:**
+    ```bash
+    pip install -r backend/requirements.txt && pip install -r frontend/requirements.txt
+    ```
+2.  **Variabili d'Ambiente:** Configura il file `.env` nella root con:
+    *   `GROQ_API_KEY`
+    *   `GOOGLE_API_KEY`
+3.  **Avvio Backend:**
+    ```bash
+    PYTHONPATH=. python3 backend/app/main.py
+    ```
+4.  **Avvio Frontend:**
+    ```bash
+    streamlit run frontend/app.py
+    ```
+
+## 🛡️ Sicurezza e Integrità
+- **Data Structural Integrity (Pag. 303):** Uso di Pydantic per validare ogni informazione estratta dallo studente.
+- **Grounding:** L'agente è istruito a non richiedere dati già presenti nel profilo, eliminando le domande ridondanti.
+
+---
+*Progetto sviluppato come caso studio didattico per il corso di AI Engineering.*
